@@ -543,6 +543,92 @@ app.post('/water-level', async (req, res) => {
 // General farming assistant route (Mega assistant)
 let chatHistory = [];
 
+app.post('/generate-plan-report', async (req, res) => {
+    const weatherDetails = `
+    Location: ${weatherData.name}, ${weatherData.sys.country}
+    - Temperature: ${weatherData.main.temp}°C
+    - Feels Like: ${weatherData.main.feels_like}°C
+    - Humidity: ${weatherData.main.humidity}%
+    - Rain (1 hour): ${weatherData.rain ? weatherData.rain['1h'] + ' mm' : 'No recent rain'}
+    - Wind: ${weatherData.wind.speed} m/s, direction ${weatherData.wind.deg}°
+    - General Weather: ${weatherData.weather[0].description}
+    - Cloud Coverage: ${weatherData.clouds.all}%
+    - Pressure: ${weatherData.main.pressure} hPa
+    - Visibility: ${weatherData.visibility / 1000} km
+    `;
+    
+    const contentText = `
+    You are an agricultural expert specializing in precision farming. Your task is to generate an **accurate and specific farming report** for the user's farm located in ${weatherData.name}, ${weatherData.sys.country}. The report should avoid any vague or generalized suggestions. Every recommendation should be directly relevant to the provided weather data and regional conditions.
+    
+    ### **Precise Weather Data Analysis:**
+    ${weatherDetails}
+    
+    ### **Targeted Crop Recommendations:**
+    - Based on the weather data and soil conditions in ${weatherData.name}, ${weatherData.sys.country}, provide specific crops (including fruits, vegetables, and herbs) that can be cultivated in this region.
+    - List exact crop varieties that have been proven to thrive under similar weather conditions and that are in **high demand** in the local and national markets.
+    - Include yield projections based on **local farm data** and **weather patterns**.
+    
+    ### **Irrigation and Soil Health:**
+    - Recommend the most **efficient irrigation systems** for the current weather and soil type in ${weatherData.name}. Avoid broad recommendations like "drip irrigation" without explanation. Specify systems that best suit the rainfall patterns and water availability here.
+    - Provide a **precise soil type analysis** for ${weatherData.name} and recommend specific soil treatments, fertilizers, or amendments that can optimize productivity.
+    - Give exact steps to maintain soil health, such as **recommended pH adjustments**, and identify nutrients that are most likely to be deficient in the local soil.
+    
+    ### **Accurate Market Analysis and Business Plan:**
+    - Conduct a **data-driven market analysis** for the recommended crops, avoiding generalized market trends. Focus on specific market opportunities in ${weatherData.name} and ${weatherData.sys.country}.
+    - Provide a **clear financial breakdown** for cultivating these crops, including detailed costs (seeds, fertilizers, labor, irrigation) and projected profits. Ensure this is specific to the farm size and regional costs.
+    - **Specify the current market price** for each crop in the region and project future prices based on **concrete market trends** and **demand forecasts**.
+    - Suggest **specific buyers and sellers** in the local agricultural markets. Include contact details of local markets, wholesalers, and potential partners who deal with these crops.
+    
+    ### **Risk Mitigation and Action Plan:**
+    - Identify the **exact risks** (e.g., specific pests, diseases, or climate risks) associated with farming in ${weatherData.name}, and provide clear steps to mitigate each risk.
+    - Avoid vague recommendations like "monitor crops" or "use pest control". Instead, specify **which pests or diseases** are most likely to occur and recommend **particular pesticides, biological controls**, or **monitoring techniques** relevant to the farm.
+    
+    ### **Conclusion and Next Steps:**
+    - Provide a concise summary with clear **actionable steps**. Each step should be practical, easily implementable, and based on the data provided.
+    - Ensure that the entire report is structured as a professional farming assessment, ready to be implemented without further clarification.
+    - Provide the report in both **English** and the **local language** of ${weatherData.name}.
+    `;
+
+    
+    
+    const requestBody = {
+        contents: [
+            {
+                parts: [
+                    {
+                        text: contentText,
+                    },
+                ],
+            },
+        ],
+    };
+
+    try {
+        const response = await axios.post(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`,
+            requestBody,
+            {
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            }
+        );
+
+        const planReport = response.data.candidates[0].content.parts.map(part => part.text).join('');
+        console.log("Plan report from Gemini:", planReport);
+
+        res.json({ planReport });
+        console.log("Plan report from Gemini:", planReport);
+    }
+
+    catch (error) {
+        console.error("Error fetching plan report from Gemini:", error);
+        res.status(500).json({ message: 'Error fetching plan report', error });
+    }
+
+
+})
+
 app.post('/mega-assistant', async (req, res) => {
     const userMessage = req.body.message;
 
@@ -611,3 +697,4 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
 });
+
